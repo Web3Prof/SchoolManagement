@@ -2,11 +2,10 @@
 pragma solidity 0.8.21;
 
 contract SchoolManagement{
-address public principal;
+    address public principal;
     string[] public classes;
     address[] public students;
     address[] public teachers;
-    uint classId;
 
     struct Class{
         uint256 classId;
@@ -17,19 +16,20 @@ address public principal;
         bool isActive;
         address studentAddress;
         string studentName;
-        string class;
+        uint256 classId;
     }
 
     struct Teacher{
         bool isActive;
         address teacherAddress;
         string teacherName;
-        string class;
+        uint256 classId;
         string subjectName;
     }
 
     struct SubjectEntry{
-        uint score;
+        uint128 entryId;
+        uint128 score;
         address teacherAddress;
         address studentAddress;
         string subjectName;
@@ -39,8 +39,10 @@ address public principal;
         STUDENT,
         TEACHER
     }
+    uint classId;
+    uint128 entryId;
     mapping (address => SubjectEntry[]) public studentToScoreEntry;
-    mapping (string => Class) public classNameToClass;
+    mapping (uint256 => Class) public classIdToClass;
     mapping (address => Teacher) public addressToTeacher;
     mapping (address => Student) public addressToStudent;
 
@@ -58,26 +60,26 @@ address public principal;
         require(addressToStudent[msg.sender].studentAddress == address(0x0) 
             && addressToTeacher[msg.sender].teacherAddress == address(0x0), "Already registered.");
         if(_role == Role.STUDENT){
-            Student memory newStudent = Student(false, msg.sender, _name, "");
+            Student memory newStudent = Student(false, msg.sender, _name, 0);
             students.push(msg.sender);
             addressToStudent[msg.sender] = newStudent;
         }
         else if(_role == Role.TEACHER){
-            Teacher memory newTeacher = Teacher(false, msg.sender, _name, "", _subjectName);
+            Teacher memory newTeacher = Teacher(false, msg.sender, _name, 0, _subjectName);
             teachers.push(msg.sender);
             addressToTeacher[msg.sender] = newTeacher;
         }
     }
 
-    function createClass(string memory _class) onlyPrincipal external{
+    function createClass(string calldata _class) onlyPrincipal external{
         classes.push(_class);
         classId++;
         Class memory newClass = Class(classId, _class);
-        classNameToClass[_class] = newClass;
+        classIdToClass[classId] = newClass;
     }
 
     function changeTeacherStatus(address _teacher) onlyPrincipal external{
-        addressToTeacher[_teacher].isActive = !addressToTeacher[_teacher].isActive;
+        addressToTeacher[_teacher].isActive = !addressToTeacher[_teacher].isActive; // !true = false
         emit StatusChanged(_teacher, addressToTeacher[_teacher].isActive);
     }
 
@@ -86,14 +88,14 @@ address public principal;
         emit StatusChanged(_student, addressToStudent[_student].isActive);
     }
 
-    function assignHomeroom(address _teacher, string calldata _class) onlyPrincipal classExist(_class) external{
+    function assignHomeroom(address _teacher, uint256 _classId) onlyPrincipal classExist(_classId) external{
         require(addressToTeacher[_teacher].isActive, "Teacher is not active.");
-        addressToTeacher[_teacher].class = _class;
+        addressToTeacher[_teacher].classId = _classId;
     }
 
-    function assignStudentClass(address _student, string calldata _class) onlyPrincipal classExist(_class) external{
+    function assignStudent(address _student, uint256 _classId) onlyPrincipal classExist(_classId) external{
         require(addressToStudent[_student].isActive, "Student is not active.");
-        addressToStudent[_student].class = _class;
+        addressToStudent[_student].classId = _classId;
     }
 
     function getAllStudents() external view returns(Student[] memory){
@@ -117,7 +119,8 @@ address public principal;
             addressToStudent[_studentAddress].isActive &&
             keccak256(abi.encodePacked(addressToTeacher[msg.sender].subjectName)) == keccak256(abi.encodePacked(_subjectName)), "Teacher is not active or not teaching this subject.");
         
-        studentToScoreEntry[_studentAddress].push(SubjectEntry(_score, msg.sender, _studentAddress, _subjectName));
+        entryId++;
+        studentToScoreEntry[_studentAddress].push(SubjectEntry(entryId, _score, msg.sender, _studentAddress, _subjectName));
         
     }
     
@@ -126,8 +129,9 @@ address public principal;
         _;
     }
     
-    modifier classExist(string memory _class) {
-        require(classes.length > 0 && classNameToClass[_class].classId != 0, "No classes to assign.");
+    modifier classExist(uint256 _classId) {
+        require(classes.length > 0 && classIdToClass[_classId].classId != 0, "No classes to assign.");
         _;
     }
+
 }
