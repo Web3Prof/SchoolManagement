@@ -16,14 +16,14 @@ contract SchoolManagement{
         bool isActive;
         address studentAddress;
         string studentName;
-        string class;
+        uint256 classId;
     }
 
     struct Teacher{
         bool isActive;
         address teacherAddress;
         string teacherName;
-        string class;
+        uint256 classId;
     }
 
     enum Role{
@@ -31,7 +31,7 @@ contract SchoolManagement{
         TEACHER
     }
     uint classId;
-    mapping (string => Class) public classNameToClass;
+    mapping (uint256 => Class) public classIdToClass;
     mapping (address => Teacher) public addressToTeacher;
     mapping (address => Student) public addressToStudent;
 
@@ -49,12 +49,12 @@ contract SchoolManagement{
         require(addressToStudent[msg.sender].studentAddress == address(0x0) 
             && addressToTeacher[msg.sender].teacherAddress == address(0x0), "Already registered.");
         if(_role == Role.STUDENT){
-            Student memory newStudent = Student(false, msg.sender, _name, "");
+            Student memory newStudent = Student(false, msg.sender, _name, 0);
             students.push(msg.sender);
             addressToStudent[msg.sender] = newStudent;
         }
         else if(_role == Role.TEACHER){
-            Teacher memory newTeacher = Teacher(false, msg.sender, _name, "");
+            Teacher memory newTeacher = Teacher(false, msg.sender, _name, 0);
             teachers.push(msg.sender);
             addressToTeacher[msg.sender] = newTeacher;
         }
@@ -64,7 +64,7 @@ contract SchoolManagement{
         classes.push(_class);
         classId++;
         Class memory newClass = Class(classId, _class);
-        classNameToClass[_class] = newClass;
+        classIdToClass[classId] = newClass;
     }
 
     function changeTeacherStatus(address _teacher) onlyPrincipal external{
@@ -77,14 +77,14 @@ contract SchoolManagement{
         emit StatusChanged(_student, addressToStudent[_student].isActive);
     }
 
-    function assignHomeroom(address _teacher, string memory _class) onlyPrincipal classExist(_class) external{
+    function assignHomeroom(address _teacher, uint256 _classId) onlyPrincipal classExist(_classId) external{
         require(addressToTeacher[_teacher].isActive, "Teacher is not active.");
-        addressToTeacher[_teacher].class = _class;
+        addressToTeacher[_teacher].classId = _classId;
     }
 
-    function assignStudent(address _student, string memory _class) onlyPrincipal classExist(_class) external{
+    function assignStudent(address _student, uint256 _classId) onlyPrincipal classExist(_classId) external{
         require(addressToStudent[_student].isActive, "Student is not active.");
-        addressToStudent[_student].class = _class;
+        addressToStudent[_student].classId = _classId;
     }
 
     function getAllStudents() external view returns(Student[] memory){
@@ -108,8 +108,8 @@ contract SchoolManagement{
         _;
     }
     
-    modifier classExist(string memory _class) {
-        require(classes.length > 0 && classNameToClass[_class].classId != (0x0), "No classes to assign.");
+    modifier classExist(uint256 _classId) {
+        require(classes.length > 0 && classIdToClass[_classId].classId != 0, "No classes to assign.");
         _;
     }
 
